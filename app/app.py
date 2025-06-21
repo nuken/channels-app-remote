@@ -76,6 +76,9 @@ def control_channels():
             client.toggle_mute()
         elif action == 'stop':
             client.stop()
+        # NEW: Added toggle_cc action
+        elif action == 'toggle_cc':
+            client.toggle_cc()
         elif action == 'navigate':
             if value:
                 client.navigate(value)

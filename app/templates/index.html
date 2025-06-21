@@ -132,7 +132,7 @@
             <button class="control-button" onclick="sendCommand('toggle_pause')">Play/Pause</button>
             <button class="control-button" onclick="sendCommand('stop')">Stop Playback</button>
             <button class="control-button" onclick="sendCommand('toggle_mute')">Toggle Mute</button>
-            <button class="control-button" onclick="sendCommand('channel_up')">Channel Up</button>
+            <button class="control-button" onclick="sendCommand('toggle_cc')">Toggle CC</button> <button class="control-button" onclick="toggleCcAndMute()">CC + Mute Toggle</button> <button class="control-button" onclick="sendCommand('channel_up')">Channel Up</button>
             <button class="control-button" onclick="sendCommand('channel_down')">Channel Down</button>
             <button class="control-button" onclick="sendCommand('previous_channel')">Previous Channel</button>
         </div>
@@ -275,10 +275,39 @@
                 const result = await response.json();
                 showNotification(`Action '${action}': ${result.message}`, result.status === 'error');
                 getStatus(); // Refresh status after sending command
+                return result.status; // Return status for combo command
             } catch (error) {
                 showNotification(`Error sending command: ${error.message}`, true);
+                return 'error'; // Indicate error
             }
         }
+
+        // NEW: Function to handle the CC + Mute combo toggle
+        async function toggleCcAndMute() {
+            if (!selectedClientIp) {
+                showNotification("Please select a client device first.", true);
+                return;
+            }
+
+            // Send toggle_cc command
+            const ccStatus = await sendCommand('toggle_cc');
+            if (ccStatus === 'error') {
+                showNotification("Failed to toggle Closed Captions.", true);
+                return;
+            }
+
+            // Send toggle_mute command
+            const muteStatus = await sendCommand('toggle_mute');
+            if (muteStatus === 'error') {
+                showNotification("Failed to toggle Mute.", true);
+                return;
+            }
+
+            if (ccStatus === 'success' && muteStatus === 'success') {
+                showNotification("Closed Captions and Mute toggled successfully.", false);
+            }
+        }
+
 
         async function sendSeekCommand(amount) {
             if (!selectedClientIp) {
