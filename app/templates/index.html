@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Channels App Remote Control</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        .container { max-width: 800px; margin: 0 auto; background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #0056b3; }
+        .config-info { background-color: #e9ecef; padding: 10px; border-radius: 5px; margin-bottom: 20px; font-size: 0.9em; }
+        .button-grid {
+            display: grid;
+            /* MODIFIED: Increased minmax for button width to ensure text fits */
+            grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); /* Adjusted from 120px to 135px */
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 12px 15px;
+            font-size: 1em;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            white-space: nowrap; /* Prevent button text from wrapping if too long */
+        }
+        button:hover { background-color: #0056b3; }
+        button:active { background-color: #004085; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+
+        .input-group { margin-top: 15px; display: flex; gap: 10px; align-items: center; }
+        .input-group input {
+            padding: 10px;
+            font-size: 1em;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            /* REMOVED: flex-grow: 1 (handled by specific input rules) */
+            /* REMOVED: width: 80px (handled by specific input rules) */
+        }
+
+        /* NEW: Specific styling for seek amount input */
+        #seek_amount_input {
+            width: 70px; /* Reduced specific width for seek input */
+            text-align: center; /* Center text for numbers */
+            -moz-appearance: textfield; /* Hide spin buttons for Firefox */
+        }
+        /* Hide spin buttons for Chrome/Safari/Edge */
+        #seek_amount_input::-webkit-outer-spin-button,
+        #seek_amount_input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        /* NEW: Specific styling for manual channel input */
+        #manual_channel_input {
+            flex-grow: 1; /* Allow it to take available space */
+            min-width: 120px; /* Ensure it has enough minimum width for placeholder */
+        }
+
+
+        pre {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 0.85em;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+        }
+        .status-section { margin-top: 25px; }
+        .channel-list-section { margin-top: 25px; }
+        .channel-list-section select { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc; font-size: 1em; margin-bottom: 10px;}
+        .channel-list-section .refresh-button-container { text-align: right; margin-top: 5px; }
+        .seek-controls { margin-top: 15px; }
+
+
+        /* Notification Styling */
+        #notification-area {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 300px;
+        }
+        .notification {
+            background-color: #4CAF50; /* Green */
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            font-size: 0.9em;
+        }
+        .notification.error { background-color: #f44336; /* Red */ }
+        .notification.show { opacity: 1; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Channels App Remote Control</h1>
+
+        <div class="config-info">
+            <p><strong>Configured Clients:</strong></p>
+            <select id="client-select" onchange="selectClient()">
+                <option value="">Select a Client</option>
+                {% for client in clients %}
+                    <option value="{{ client.ip }}">{{ client.name }} ({{ client.ip }})</option>
+                {% endfor %}
+            </select>
+            {% if not clients %}
+                <p style="color: red;">No clients configured. Set CHANNELS_APP_CLIENTS environment variable.</p>
+            {% endif %}
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <input type="checkbox" id="enablePopups" checked>
+            <label for="enablePopups">Show Status Notifications (Recommended: Off for mobile)</label>
+        </div>
+
+
+        <h2>Playback Controls</h2>
+        <div class="button-grid">
+            <button class="control-button" onclick="sendCommand('toggle_pause')">Play/Pause</button>
+            <button class="control-button" onclick="sendCommand('stop')">Stop Playback</button>
+            <button class="control-button" onclick="sendCommand('toggle_mute')">Toggle Mute</button>
+            <button class="control-button" onclick="sendCommand('channel_up')">Channel Up</button>
+            <button class="control-button" onclick="sendCommand('channel_down')">Channel Down</button>
+            <button class="control-button" onclick="sendCommand('previous_channel')">Previous Channel</button>
+        </div>
+
+        <div class="seek-controls input-group">
+            <input type="number" id="seek_amount_input" value="30" placeholder="Secs"> <button class="control-button" onclick="sendSeekCommand(-1 * document.getElementById('seek_amount_input').value)">Seek Back</button>
+            <button class="control-button" onclick="sendSeekCommand(document.getElementById('seek_amount_input').value)">Seek Forward</button>
+        </div>
+
+        <div class="input-group">
+            <input type="number" id="manual_channel_input" placeholder="Enter Channel #"> <button class="control-button" onclick="sendCommand('play_channel', document.getElementById('manual_channel_input').value)">Play Manual Channel</button>
+        </div>
+
+        <div class="channel-list-section">
+            <h2>Live TV Favorite Channels</h2>
+            <select id="channel-select" class="control-button" onchange="tuneToSelectedChannel()">
+                <option value="">Select a Channel</option>
+                </select>
+            <div class="refresh-button-container">
+                <button class="control-button" onclick="loadChannels()">Refresh Favorites</button>
+            </div>
+            <p style="font-size: 0.8em; margin-top: 5px;">Fetches favorite channels directly from the selected Channels App client.</p>
+        </div>
+
+
+        <h2>Navigation</h2>
+        <div class="button-grid">
+            <button class="control-button" onclick="sendCommand('navigate', 'Live TV')">Go to Live TV</button>
+            <button class="control-button" onclick="sendCommand('navigate', 'Guide')">Go to Guide</button>
+            <button class="control-button" onclick="sendCommand('navigate', 'Library')">Go to Library</button>
+            <button class="control-button" onclick="sendCommand('navigate', 'Search')">Go to Search</button>
+        </div>
+
+        <div class="status-section">
+            <h2>Current Device Status</h2>
+            <button class="control-button" onclick="getStatus()">Refresh Status</button>
+            <pre id="status-display">Select a client and click "Refresh Status" to fetch.</pre>
+        </div>
+    </div>
+
+    <div id="notification-area"></div>
+
+    <script>
+        const clientSelect = document.getElementById('client-select');
+        const channelSelect = document.getElementById('channel-select');
+        const enablePopupsCheckbox = document.getElementById('enablePopups');
+        const notificationArea = document.getElementById('notification-area');
+        const statusDisplay = document.getElementById('status-display');
+        const controlButtons = document.querySelectorAll('.control-button'); // All buttons that send commands or fetch status
+
+        let selectedClientIp = ''; // Stores the currently selected client's IP
+
+        function showNotification(message, isError = false) {
+            if (!enablePopupsCheckbox.checked) {
+                console.log("Notification suppressed:", message);
+                return;
+            }
+            const notification = document.createElement('div');
+            notification.className = `notification ${isError ? 'error' : ''}`;
+            notification.textContent = message;
+            notificationArea.appendChild(notification);
+
+            // Trigger reflow to ensure animation plays
+            void notification.offsetWidth;
+            notification.classList.add('show');
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+                notification.addEventListener('transitionend', () => notification.remove(), { once: true });
+            }, 3000); // Notification disappears after 3 seconds
+        }
+
+        function toggleControls(enable) {
+            controlButtons.forEach(button => {
+                button.disabled = !enable;
+            });
+            if (enable && selectedClientIp) {
+                channelSelect.disabled = false;
+            } else {
+                channelSelect.disabled = true;
+            }
+        }
+
+        // Initialize state based on initial client selection
+        document.addEventListener('DOMContentLoaded', () => {
+            if (clientSelect.options.length > 1) { // If there's more than just "Select a Client"
+                clientSelect.selectedIndex = 1; // Auto-select the first client
+                selectClient(); // Trigger the selection logic
+            } else {
+                toggleControls(false); // Disable controls if no clients are configured
+                statusDisplay.innerText = "No Channels App clients configured. Please set CHANNELS_APP_CLIENTS environment variable.";
+                showNotification("No Channels App clients configured.", true);
+            }
+
+            // Set initial state of checkbox from localStorage or default to false
+            const savedPopupState = localStorage.getItem('enablePopups');
+            if (savedPopupState !== null) {
+                enablePopupsCheckbox.checked = JSON.parse(savedPopupState);
+            } else {
+                enablePopupsCheckbox.checked = false; // Default to off
+            }
+
+            enablePopupsCheckbox.addEventListener('change', () => {
+                localStorage.setItem('enablePopups', enablePopupsCheckbox.checked);
+            });
+        });
+
+        async function selectClient() {
+            selectedClientIp = clientSelect.value;
+            if (selectedClientIp) {
+                showNotification(`Controlling: ${clientSelect.options[clientSelect.selectedIndex].text}`, false);
+                toggleControls(true); // Enable controls when a client is selected
+                getStatus(); // Get status of the newly selected client
+                loadChannels(); // Load favorite channels for the newly selected client
+            } else {
+                showNotification("Please select a client device.", true);
+                toggleControls(false); // Disable controls if no client is selected
+                statusDisplay.innerText = "Select a client and click \"Refresh Status\" to fetch.";
+                channelSelect.innerHTML = '<option value="">Select a Client First</option>';
+            }
+        }
+
+        async function sendCommand(action, value = null) {
+            if (!selectedClientIp) {
+                showNotification("Please select a client device first.", true);
+                return;
+            }
+
+            const data = { action: action, device_ip: selectedClientIp };
+            if (value !== null) {
+                data.value = value;
+            }
+
+            try {
+                const response = await fetch('/control', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                showNotification(`Action '${action}': ${result.message}`, result.status === 'error');
+                getStatus(); // Refresh status after sending command
+            } catch (error) {
+                showNotification(`Error sending command: ${error.message}`, true);
+            }
+        }
+
+        async function sendSeekCommand(amount) {
+            if (!selectedClientIp) {
+                showNotification("Please select a client device first.", true);
+                return;
+            }
+            const seekValue = parseInt(amount, 10);
+            if (isNaN(seekValue)) {
+                showNotification("Please enter a valid number for seek amount.", true);
+                return;
+            }
+
+            const data = { action: 'seek', device_ip: selectedClientIp, seek_amount: seekValue };
+
+            try {
+                const response = await fetch('/control', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                showNotification(`Seek ${seekValue}s: ${result.message}`, result.status === 'error');
+                getStatus(); // Refresh status after sending command
+            } catch (error) {
+                showNotification(`Error sending seek command: ${error.message}`, true);
+            }
+        }
+
+        async function getStatus() {
+            if (!selectedClientIp) {
+                statusDisplay.innerText = "No client selected.";
+                return;
+            }
+            try {
+                const response = await fetch(`/status?device_ip=${selectedClientIp}`); // Send IP as query param
+                const status = await response.json();
+                if (status.status === 'error') {
+                    statusDisplay.innerText = `Error: ${status.message}`;
+                    showNotification(`Status Error: ${status.message}`, true);
+                } else {
+                    statusDisplay.innerText = JSON.stringify(status, null, 2);
+                    showNotification(`Status refreshed for ${selectedClientIp}.`, false);
+                }
+            } catch (error) {
+                statusDisplay.innerText = `Error fetching status: ${error.message}\nEnsure the Channels App is running on ${selectedClientIp} and reachable.`;
+                showNotification(`Status fetch error for ${selectedClientIp}: ${error.message}`, true);
+            }
+        }
+
+        async function loadChannels() {
+            if (!selectedClientIp) {
+                channelSelect.innerHTML = '<option value="">Select a Client First</option>';
+                channelSelect.disabled = true;
+                return;
+            }
+
+            channelSelect.innerHTML = '<option value="">Loading Channels...</option>';
+            channelSelect.disabled = true; // Disable while loading
+
+            try {
+                const response = await fetch(`/channels_list?device_ip=${selectedClientIp}`); // Send IP as query param
+                const channels = await response.json();
+
+                channelSelect.innerHTML = '<option value="">Select a Channel</option>'; // Reset dropdown
+
+                if (channels.status === 'error') {
+                    showNotification(`Failed to load favorite channels: ${channels.message}`, true);
+                    channelSelect.innerHTML = `<option value="">Error: ${channels.message}</option>`;
+                } else if (channels.length === 0) {
+                     channelSelect.innerHTML = '<option value="">No favorite channels found.</option>';
+                } else {
+                    channels.forEach(channel => {
+                        const option = document.createElement('option');
+                        option.value = channel.channel_number;
+                        option.textContent = `${channel.channel_number} - ${channel.name}`;
+                        channelSelect.appendChild(option);
+                    });
+                    channelSelect.disabled = false; // Enable dropdown once loaded
+                    showNotification(`Favorite channels loaded for ${selectedClientIp}.`, false);
+                }
+
+            } catch (error) {
+                showNotification(`Failed to fetch favorite channel list: ${error.message}`, true);
+                channelSelect.innerHTML = '<option value="">Failed to load channels.</option>';
+            }
+        }
+
+        function tuneToSelectedChannel() {
+            const selectedChannel = channelSelect.value;
+            if (selectedChannel) {
+                sendCommand('play_channel', selectedChannel);
+            }
+        }
+    </script>
+</body>
+</html>
