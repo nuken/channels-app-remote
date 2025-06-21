@@ -95,6 +95,51 @@
         }
         .notification.error { background-color: #f44336; }
         .notification.show { opacity: 1; }
+
+        /* Styling for Now Playing display */
+        #now-playing-display {
+            display: flex;
+            align-items: flex-start; /* Align items to the top for better text flow */
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+            margin-top: 10px;
+            gap: 15px;
+        }
+        #now-playing-display img {
+            max-width: 120px; /* Adjust image size as needed */
+            height: auto;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            flex-shrink: 0; /* Prevent image from shrinking */
+        }
+        #now-playing-info {
+            flex-grow: 1; /* Allow info block to take available space */
+        }
+        #now-playing-info h3 {
+            margin-top: 0;
+            margin-bottom: 5px;
+            color: #0056b3;
+            font-size: 1.2em;
+        }
+        #now-playing-info p {
+            margin: 0;
+            font-size: 0.95em;
+            color: #333;
+        }
+        #now-playing-info .episode-details {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        #now-playing-info .summary {
+            font-size: 0.85em;
+            color: #555;
+        }
+        #now-playing-display.hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -165,7 +210,9 @@
         <div class="status-section">
             <h2>Current Device Status</h2>
             <button class="control-button" onclick="getStatus()">Refresh Status</button>
-            <pre id="status-display">Select a client and click "Refresh Status" to fetch.</pre>
+            <div id="now-playing-display" class="hidden">
+                </div>
+            <pre id="status-display" style="margin-top: 10px;"></pre>
         </div>
     </div>
 
@@ -177,11 +224,11 @@
         const enablePopupsCheckbox = document.getElementById('enablePopups');
         const notificationArea = document.getElementById('notification-area');
         const statusDisplay = document.getElementById('status-display');
+        const nowPlayingDisplay = document.getElementById('now-playing-display');
         const controlButtons = document.querySelectorAll('.control-button');
 
         let selectedClientIp = '';
 
-        // These variables are now correctly populated by Flask again
         const flaskClients = {{ clients | tojson }};
         const clientsConfiguredViaEnv = {{ clients_configured | tojson }};
 
@@ -216,27 +263,25 @@
             }
         }
 
-        // Initialize state based on initial client selection
         document.addEventListener('DOMContentLoaded', () => {
-            // Restore saved popup state
             const savedPopupState = localStorage.getItem('enablePopups');
             if (savedPopupState !== null) {
                 enablePopupsCheckbox.checked = JSON.parse(savedPopupState);
             } else {
-                enablePopupsCheckbox.checked = false; // Default to off
+                enablePopupsCheckbox.checked = false;
             }
 
             enablePopupsCheckbox.addEventListener('change', () => {
                 localStorage.setItem('enablePopups', enablePopupsCheckbox.checked);
             });
 
-            // Handle client selection based on flaskClients
-            if (flaskClients.length > 0) { // If there's at least one client from environment variable
-                clientSelect.selectedIndex = 1; // Auto-select the first client (index 0 is "Select a Client")
-                selectClient(); // Trigger the selection logic
+            if (flaskClients.length > 0) {
+                clientSelect.selectedIndex = 1;
+                selectClient();
             } else {
-                toggleControls(false); // Disable controls if no clients are configured
+                toggleControls(false);
                 statusDisplay.innerText = "No Channels App clients configured. Please set CHANNELS_APP_CLIENTS environment variable.";
+                nowPlayingDisplay.classList.add('hidden');
                 showNotification("No Channels App clients configured.", true);
             }
         });
@@ -245,13 +290,14 @@
             selectedClientIp = clientSelect.value;
             if (selectedClientIp) {
                 showNotification(`Controlling: ${clientSelect.options[clientSelect.selectedIndex].text}`, false);
-                toggleControls(true); // Enable controls when a client is selected
-                getStatus(); // Get status of the newly selected client
-                loadChannels(); // Load favorite channels for the newly selected client
+                toggleControls(true);
+                getStatus();
+                loadChannels();
             } else {
                 showNotification("Please select a client device.", true);
-                toggleControls(false); // Disable controls if no client is selected
+                toggleControls(false);
                 statusDisplay.innerText = "Select a client and click \"Refresh Status\" to fetch.";
+                nowPlayingDisplay.classList.add('hidden');
                 channelSelect.innerHTML = '<option value="">Select a Client First</option>';
             }
         }
@@ -358,20 +404,56 @@
         async function getStatus() {
             if (!selectedClientIp) {
                 statusDisplay.innerText = "No client selected.";
+                nowPlayingDisplay.classList.add('hidden');
                 return;
             }
             try {
                 const response = await fetch(`/status?device_ip=${selectedClientIp}`);
                 const status = await response.json();
+
+                statusDisplay.innerText = JSON.stringify(status, null, 2);
+                statusDisplay.style.display = 'block';
+
                 if (status.status === 'error') {
-                    statusDisplay.innerText = `Error: ${status.message}`;
                     showNotification(`Status Error: ${status.message}`, true);
+                    nowPlayingDisplay.classList.add('hidden');
                 } else {
-                    statusDisplay.innerText = JSON.stringify(status, null, 2);
                     showNotification(`Status refreshed for ${selectedClientIp}.`, false);
+
+                    const np = status.now_playing; // Shorter variable for convenience
+
+                    // Check if now_playing data is available and meaningful
+                    if (np && np.title) {
+                        let episodeDetails = '';
+                        if (np.season_number && np.episode_number) {
+                            episodeDetails += `S${np.season_number} E${np.episode_number}`;
+                            if (np.episode_title) {
+                                episodeDetails += `: ${np.episode_title}`;
+                            }
+                        } else if (np.episode_title) {
+                            episodeDetails += np.episode_title;
+                        }
+
+                        nowPlayingDisplay.innerHTML = `
+                            ${np.image_url ? `<img src="${np.image_url}" alt="Now Playing Image">` : ''}
+                            <div id="now-playing-info">
+                                <h3>${np.title}</h3>
+                                ${episodeDetails ? `<p class="episode-details">${episodeDetails}</p>` : ''}
+                                ${np.summary ? `<p class="summary">${np.summary}</p>` : ''}
+                            </div>
+                        `;
+                        nowPlayingDisplay.classList.remove('hidden');
+                        statusDisplay.style.display = 'none'; // Hide raw JSON when formatted is shown
+                    } else {
+                        nowPlayingDisplay.classList.add('hidden');
+                        statusDisplay.style.display = 'block';
+                        statusDisplay.innerText = "No 'Now Playing' information available (or not currently playing).\n\n" + statusDisplay.innerText;
+                    }
                 }
             } catch (error) {
                 statusDisplay.innerText = `Error fetching status: ${error.message}\nEnsure the Channels App is running on ${selectedClientIp} and reachable.`;
+                nowPlayingDisplay.classList.add('hidden');
+                statusDisplay.style.display = 'block';
                 showNotification(`Status fetch error for ${selectedClientIp}: ${error.message}`, true);
             }
         }
