@@ -11,8 +11,7 @@
         .config-info { background-color: #e9ecef; padding: 10px; border-radius: 5px; margin-bottom: 20px; font-size: 0.9em; }
         .button-grid {
             display: grid;
-            /* MODIFIED: Increased minmax for button width to ensure text fits */
-            grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); /* Adjusted from 120px to 135px */
+            grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
             gap: 10px;
             margin-bottom: 20px;
         }
@@ -25,7 +24,7 @@
             border-radius: 5px;
             cursor: pointer;
             transition: background-color 0.2s ease;
-            white-space: nowrap; /* Prevent button text from wrapping if too long */
+            white-space: nowrap;
         }
         button:hover { background-color: #0056b3; }
         button:active { background-color: #004085; }
@@ -37,29 +36,24 @@
             font-size: 1em;
             border: 1px solid #ccc;
             border-radius: 5px;
-            /* REMOVED: flex-grow: 1 (handled by specific input rules) */
-            /* REMOVED: width: 80px (handled by specific input rules) */
+            flex-grow: 1;
         }
 
-        /* NEW: Specific styling for seek amount input */
         #seek_amount_input {
-            width: 70px; /* Reduced specific width for seek input */
-            text-align: center; /* Center text for numbers */
-            -moz-appearance: textfield; /* Hide spin buttons for Firefox */
+            width: 70px;
+            text-align: center;
+            -moz-appearance: textfield;
+            flex-grow: 0;
         }
-        /* Hide spin buttons for Chrome/Safari/Edge */
         #seek_amount_input::-webkit-outer-spin-button,
         #seek_amount_input::-webkit-inner-spin-button {
             -webkit-appearance: none;
             margin: 0;
         }
 
-        /* NEW: Specific styling for manual channel input */
         #manual_channel_input {
-            flex-grow: 1; /* Allow it to take available space */
-            min-width: 120px; /* Ensure it has enough minimum width for placeholder */
+            min-width: 120px;
         }
-
 
         pre {
             background-color: #e9ecef;
@@ -78,7 +72,6 @@
         .channel-list-section .refresh-button-container { text-align: right; margin-top: 5px; }
         .seek-controls { margin-top: 15px; }
 
-
         /* Notification Styling */
         #notification-area {
             position: fixed;
@@ -91,7 +84,7 @@
             max-width: 300px;
         }
         .notification {
-            background-color: #4CAF50; /* Green */
+            background-color: #4CAF50;
             color: white;
             padding: 10px 20px;
             border-radius: 5px;
@@ -100,7 +93,7 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             font-size: 0.9em;
         }
-        .notification.error { background-color: #f44336; /* Red */ }
+        .notification.error { background-color: #f44336; }
         .notification.show { opacity: 1; }
     </style>
 </head>
@@ -116,7 +109,7 @@
                     <option value="{{ client.ip }}">{{ client.name }} ({{ client.ip }})</option>
                 {% endfor %}
             </select>
-            {% if not clients %}
+            {% if not clients_configured %}
                 <p style="color: red;">No clients configured. Set CHANNELS_APP_CLIENTS environment variable.</p>
             {% endif %}
         </div>
@@ -132,7 +125,10 @@
             <button class="control-button" onclick="sendCommand('toggle_pause')">Play/Pause</button>
             <button class="control-button" onclick="sendCommand('stop')">Stop Playback</button>
             <button class="control-button" onclick="sendCommand('toggle_mute')">Toggle Mute</button>
-            <button class="control-button" onclick="sendCommand('toggle_cc')">Toggle CC</button> <button class="control-button" onclick="toggleCcAndMute()">CC + Mute Toggle</button> <button class="control-button" onclick="sendCommand('channel_up')">Channel Up</button>
+            <button class="control-button" onclick="sendCommand('toggle_cc')">Toggle CC</button>
+            <button class="control-button" onclick="toggleCcAndMute()">CC + Mute Toggle</button>
+            <button class="control-button" onclick="rewindAndEnableCC()">Rewind 15s & CC</button>
+            <button class="control-button" onclick="sendCommand('channel_up')">Channel Up</button>
             <button class="control-button" onclick="sendCommand('channel_down')">Channel Down</button>
             <button class="control-button" onclick="sendCommand('previous_channel')">Previous Channel</button>
         </div>
@@ -181,9 +177,14 @@
         const enablePopupsCheckbox = document.getElementById('enablePopups');
         const notificationArea = document.getElementById('notification-area');
         const statusDisplay = document.getElementById('status-display');
-        const controlButtons = document.querySelectorAll('.control-button'); // All buttons that send commands or fetch status
+        const controlButtons = document.querySelectorAll('.control-button');
 
-        let selectedClientIp = ''; // Stores the currently selected client's IP
+        let selectedClientIp = '';
+
+        // These variables are now correctly populated by Flask again
+        const flaskClients = {{ clients | tojson }};
+        const clientsConfiguredViaEnv = {{ clients_configured | tojson }};
+
 
         function showNotification(message, isError = false) {
             if (!enablePopupsCheckbox.checked) {
@@ -195,14 +196,13 @@
             notification.textContent = message;
             notificationArea.appendChild(notification);
 
-            // Trigger reflow to ensure animation plays
             void notification.offsetWidth;
             notification.classList.add('show');
 
             setTimeout(() => {
                 notification.classList.remove('show');
                 notification.addEventListener('transitionend', () => notification.remove(), { once: true });
-            }, 3000); // Notification disappears after 3 seconds
+            }, 3000);
         }
 
         function toggleControls(enable) {
@@ -218,16 +218,7 @@
 
         // Initialize state based on initial client selection
         document.addEventListener('DOMContentLoaded', () => {
-            if (clientSelect.options.length > 1) { // If there's more than just "Select a Client"
-                clientSelect.selectedIndex = 1; // Auto-select the first client
-                selectClient(); // Trigger the selection logic
-            } else {
-                toggleControls(false); // Disable controls if no clients are configured
-                statusDisplay.innerText = "No Channels App clients configured. Please set CHANNELS_APP_CLIENTS environment variable.";
-                showNotification("No Channels App clients configured.", true);
-            }
-
-            // Set initial state of checkbox from localStorage or default to false
+            // Restore saved popup state
             const savedPopupState = localStorage.getItem('enablePopups');
             if (savedPopupState !== null) {
                 enablePopupsCheckbox.checked = JSON.parse(savedPopupState);
@@ -238,6 +229,16 @@
             enablePopupsCheckbox.addEventListener('change', () => {
                 localStorage.setItem('enablePopups', enablePopupsCheckbox.checked);
             });
+
+            // Handle client selection based on flaskClients
+            if (flaskClients.length > 0) { // If there's at least one client from environment variable
+                clientSelect.selectedIndex = 1; // Auto-select the first client (index 0 is "Select a Client")
+                selectClient(); // Trigger the selection logic
+            } else {
+                toggleControls(false); // Disable controls if no clients are configured
+                statusDisplay.innerText = "No Channels App clients configured. Please set CHANNELS_APP_CLIENTS environment variable.";
+                showNotification("No Channels App clients configured.", true);
+            }
         });
 
         async function selectClient() {
@@ -258,7 +259,7 @@
         async function sendCommand(action, value = null) {
             if (!selectedClientIp) {
                 showNotification("Please select a client device first.", true);
-                return;
+                return 'error';
             }
 
             const data = { action: action, device_ip: selectedClientIp };
@@ -274,50 +275,23 @@
                 });
                 const result = await response.json();
                 showNotification(`Action '${action}': ${result.message}`, result.status === 'error');
-                getStatus(); // Refresh status after sending command
-                return result.status; // Return status for combo command
+                getStatus();
+                return result.status;
             } catch (error) {
                 showNotification(`Error sending command: ${error.message}`, true);
-                return 'error'; // Indicate error
+                return 'error';
             }
         }
-
-        // NEW: Function to handle the CC + Mute combo toggle
-        async function toggleCcAndMute() {
-            if (!selectedClientIp) {
-                showNotification("Please select a client device first.", true);
-                return;
-            }
-
-            // Send toggle_cc command
-            const ccStatus = await sendCommand('toggle_cc');
-            if (ccStatus === 'error') {
-                showNotification("Failed to toggle Closed Captions.", true);
-                return;
-            }
-
-            // Send toggle_mute command
-            const muteStatus = await sendCommand('toggle_mute');
-            if (muteStatus === 'error') {
-                showNotification("Failed to toggle Mute.", true);
-                return;
-            }
-
-            if (ccStatus === 'success' && muteStatus === 'success') {
-                showNotification("Closed Captions and Mute toggled successfully.", false);
-            }
-        }
-
 
         async function sendSeekCommand(amount) {
             if (!selectedClientIp) {
                 showNotification("Please select a client device first.", true);
-                return;
+                return 'error';
             }
             const seekValue = parseInt(amount, 10);
             if (isNaN(seekValue)) {
                 showNotification("Please enter a valid number for seek amount.", true);
-                return;
+                return 'error';
             }
 
             const data = { action: 'seek', device_ip: selectedClientIp, seek_amount: seekValue };
@@ -330,9 +304,54 @@
                 });
                 const result = await response.json();
                 showNotification(`Seek ${seekValue}s: ${result.message}`, result.status === 'error');
-                getStatus(); // Refresh status after sending command
+                getStatus();
+                return result.status;
             } catch (error) {
                 showNotification(`Error sending seek command: ${error.message}`, true);
+                return 'error';
+            }
+        }
+
+        async function toggleCcAndMute() {
+            if (!selectedClientIp) {
+                showNotification("Please select a client device first.", true);
+                return;
+            }
+
+            const ccStatus = await sendCommand('toggle_cc');
+            if (ccStatus === 'error') {
+                showNotification("Failed to toggle Closed Captions.", true);
+                return;
+            }
+
+            const muteStatus = await sendCommand('toggle_mute');
+            if (muteStatus === 'error') {
+                showNotification("Failed to toggle Mute.", true);
+                return;
+            }
+
+            if (ccStatus === 'success' && muteStatus === 'success') {
+                showNotification("Closed Captions and Mute toggled successfully.", false);
+            }
+        }
+
+        async function rewindAndEnableCC() {
+            if (!selectedClientIp) {
+                showNotification("Please select a client device first.", true);
+                return;
+            }
+
+            const seekStatus = await sendSeekCommand(-15);
+            if (seekStatus === 'error') {
+                showNotification("Failed to rewind.", true);
+                return;
+            }
+
+            const ccToggleStatus = await sendCommand('toggle_cc');
+            if (ccToggleStatus === 'success') {
+                showNotification("Rewound 15s and Closed Captions toggled.", false);
+            } else {
+                showNotification("Rewound 15s, but failed to toggle Closed Captions.", true);
             }
         }
 
@@ -342,7 +361,7 @@
                 return;
             }
             try {
-                const response = await fetch(`/status?device_ip=${selectedClientIp}`); // Send IP as query param
+                const response = await fetch(`/status?device_ip=${selectedClientIp}`);
                 const status = await response.json();
                 if (status.status === 'error') {
                     statusDisplay.innerText = `Error: ${status.message}`;
@@ -365,13 +384,13 @@
             }
 
             channelSelect.innerHTML = '<option value="">Loading Channels...</option>';
-            channelSelect.disabled = true; // Disable while loading
+            channelSelect.disabled = true;
 
             try {
-                const response = await fetch(`/channels_list?device_ip=${selectedClientIp}`); // Send IP as query param
+                const response = await fetch(`/channels_list?device_ip=${selectedClientIp}`);
                 const channels = await response.json();
 
-                channelSelect.innerHTML = '<option value="">Select a Channel</option>'; // Reset dropdown
+                channelSelect.innerHTML = '<option value="">Select a Channel</option>';
 
                 if (channels.status === 'error') {
                     showNotification(`Failed to load favorite channels: ${channels.message}`, true);
@@ -385,7 +404,7 @@
                         option.textContent = `${channel.channel_number} - ${channel.name}`;
                         channelSelect.appendChild(option);
                     });
-                    channelSelect.disabled = false; // Enable dropdown once loaded
+                    channelSelect.disabled = false;
                     showNotification(`Favorite channels loaded for ${selectedClientIp}.`, false);
                 }
 

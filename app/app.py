@@ -12,24 +12,28 @@ CHANNELS_APP_PORT = 57000 # Standard Channels App API port
 
 # Parse the client string into a list of dictionaries
 CHANNELS_CLIENTS = []
+CLIENTS_CONFIGURED = False # Flag to indicate if any clients are configured via env var
 if CHANNELS_APP_CLIENTS_STR:
     try:
         for client_pair in CHANNELS_APP_CLIENTS_STR.split(','):
             name, ip = client_pair.strip().split(':')
             CHANNELS_CLIENTS.append({"name": name.strip(), "ip": ip.strip()})
+        if CHANNELS_CLIENTS: # Only set to True if clients were successfully parsed
+            CLIENTS_CONFIGURED = True
     except Exception as e:
         print(f"ERROR: Could not parse CHANNELS_APP_CLIENTS environment variable: {e}")
         CHANNELS_CLIENTS = [] # Clear if parsing fails
+        CLIENTS_CONFIGURED = False # Ensure flag is false on error
 
-if not CHANNELS_CLIENTS:
+if not CLIENTS_CONFIGURED: # Use the new flag for warning
     print("WARNING: CHANNELS_APP_CLIENTS environment variable not set or incorrectly formatted.")
     print("Please set CHANNELS_APP_CLIENTS to 'Name1:IP1,Name2:IP2,...'.")
 
 
 @app.route('/')
 def index():
-    # Pass the list of clients to the template
-    return render_template('index.html', clients=CHANNELS_CLIENTS)
+    # Pass the list of clients and the new flag to the template
+    return render_template('index.html', clients=CHANNELS_CLIENTS, clients_configured=CLIENTS_CONFIGURED)
 
 @app.route('/control', methods=['POST'])
 def control_channels():
@@ -37,12 +41,12 @@ def control_channels():
     target_device_ip = data.get('device_ip')
     action = data.get('action')
     value = data.get('value')
-    # NEW: Get seek_amount from the request
     seek_amount = data.get('seek_amount')
 
     if not target_device_ip:
         return jsonify({"status": "error", "message": "No target device IP provided."}), 400
 
+    # Validate against the backend's configured list
     if not any(client['ip'] == target_device_ip for client in CHANNELS_CLIENTS):
          return jsonify({"status": "error", "message": f"Device IP {target_device_ip} is not configured."}), 400
 
@@ -62,12 +66,11 @@ def control_channels():
                 client.play_channel(str(value))
             else:
                 return jsonify({"status": "error", "message": "Channel number required for 'play_channel'."}), 400
-        # MODIFIED: Handle seek with a specific amount
         elif action == 'seek':
             if seek_amount is not None:
                 try:
                     seek_seconds = int(seek_amount)
-                    client.seek(seek_seconds) # pychannels supports client.seek(seconds)
+                    client.seek(seek_seconds)
                 except ValueError:
                     return jsonify({"status": "error", "message": "Seek amount must be an integer."}), 400
             else:
@@ -76,7 +79,6 @@ def control_channels():
             client.toggle_mute()
         elif action == 'stop':
             client.stop()
-        # NEW: Added toggle_cc action
         elif action == 'toggle_cc':
             client.toggle_cc()
         elif action == 'navigate':
