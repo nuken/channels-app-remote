@@ -5,10 +5,153 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Channels App Remote Control</title>
     <style>
-        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
-        .container { max-width: 800px; margin: 0 auto; background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1, h2 { color: #0056b3; }
-        .config-info { background-color: #e9ecef; padding: 10px; border-radius: 5px; margin-bottom: 20px; font-size: 0.9em; }
+        /* Base CSS Variables (Default Light Theme) */
+        :root {
+            --body-bg-color: #f4f4f4;
+            --text-color: #333;
+            --container-bg-color: #fff;
+            --box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            --header-color: #0056b3;
+            --config-info-bg: #e9ecef;
+
+            --button-bg-color: #007bff;
+            --button-hover-bg-color: #0056b3;
+            --button-active-bg-color: #004085;
+            --button-text-color: white;
+
+            --input-border-color: #ccc;
+            --pre-bg-color: #e9ecef;
+            --pre-border-color: #dee2e6;
+
+            --notification-success-bg: #4CAF50;
+            --notification-error-bg: #f44336;
+
+            --now-playing-bg: #e9ecef;
+            --now-playing-border: #dee2e6;
+            --now-playing-header-color: #0056b3;
+            --now-playing-text-color: #333;
+            --now-playing-episode-color: #666;
+            --now-playing-summary-color: #555;
+            --now-playing-image-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        /* Dark Theme 1: Default Dark with Gray Buttons */
+        body.theme-dark-gray {
+            --body-bg-color: #2c2c2c;
+            --text-color: #e0e0e0;
+            --container-bg-color: #3a3a3a;
+            --box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            --header-color: #7dd3fc; /* Light blue for headers */
+            --config-info-bg: #4a4a4a;
+
+            --button-bg-color: #555555;
+            --button-hover-bg-color: #666666;
+            --button-active-bg-color: #444444;
+            --button-text-color: #ffffff;
+
+            --input-border-color: #666;
+            --pre-bg-color: #4a4a4a;
+            --pre-border-color: #5a5a5a;
+
+            --notification-success-bg: #28a745;
+            --notification-error-bg: #dc3545;
+
+            --now-playing-bg: #4a4a4a;
+            --now-playing-border: #5a5a5a;
+            --now-playing-header-color: #7dd3fc;
+            --now-playing-text-color: #e0e0e0;
+            --now-playing-episode-color: #b0b0b0;
+            --now-playing-summary-color: #c0c0c0;
+        }
+
+        /* Dark Theme 2: Dark with Green Buttons */
+        body.theme-dark-green {
+            --body-bg-color: #1e1e1e;
+            --text-color: #e0e0e0;
+            --container-bg-color: #2b2b2b;
+            --box-shadow: 0 2px 15px rgba(0,0,0,0.4);
+            --header-color: #a7f3d0; /* Light green for headers */
+            --config-info-bg: #3c3c3c;
+
+            --button-bg-color: #28a745; /* Green */
+            --button-hover-bg-color: #218838;
+            --button-active-bg-color: #1e7e34;
+            --button-text-color: #ffffff;
+
+            --input-border-color: #555;
+            --pre-bg-color: #3c3c3c;
+            --pre-border-color: #4c4c4c;
+
+            --notification-success-bg: #28a745;
+            --notification-error-bg: #dc3545;
+
+            --now-playing-bg: #3c3c3c;
+            --now-playing-border: #4c4c4c;
+            --now-playing-header-color: #a7f3d0;
+            --now-playing-text-color: #e0e0e0;
+            --now-playing-episode-color: #b0b0b0;
+            --now-playing-summary-color: #c0c0c0;
+        }
+
+        /* Light Theme 2: Light with Purple Buttons */
+        body.theme-light-purple {
+            --body-bg-color: #f0f2f5;
+            --text-color: #333;
+            --container-bg-color: #ffffff;
+            --box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            --header-color: #6f42c1; /* Purple for headers */
+            --config-info-bg: #e6eaf0;
+
+            --button-bg-color: #6f42c1; /* Purple */
+            --button-hover-bg-color: #5c37a7;
+            --button-active-bg-color: #4b2e8a;
+            --button-text-color: white;
+
+            --input-border-color: #d1d4d8;
+            --pre-bg-color: #e6eaf0;
+            --pre-border-color: #d1d4d8;
+
+            --notification-success-bg: #28a745;
+            --notification-error-bg: #dc3545;
+
+            --now-playing-bg: #e6eaf0;
+            --now-playing-border: #d1d4d8;
+            --now-playing-header-color: #6f42c1;
+            --now-playing-text-color: #333;
+            --now-playing-episode-color: #666;
+            --now-playing-summary-color: #555;
+        }
+
+
+        /* General Styles using CSS Variables */
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+            background-color: var(--body-bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: var(--container-bg-color);
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: var(--box-shadow);
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        h1, h2 {
+            color: var(--header-color);
+            transition: color 0.3s ease;
+        }
+        .config-info {
+            background-color: var(--config-info-bg);
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            transition: background-color 0.3s ease;
+        }
         .button-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
@@ -18,25 +161,28 @@
         button {
             padding: 12px 15px;
             font-size: 1em;
-            background-color: #007bff;
-            color: white;
+            background-color: var(--button-bg-color);
+            color: var(--button-text-color);
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            transition: background-color 0.2s ease;
+            transition: background-color 0.2s ease, color 0.2s ease;
             white-space: nowrap;
         }
-        button:hover { background-color: #0056b3; }
-        button:active { background-color: #004085; }
-        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        button:hover { background-color: var(--button-hover-bg-color); }
+        button:active { background-color: var(--button-active-bg-color); }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; color: #666; }
 
         .input-group { margin-top: 15px; display: flex; gap: 10px; align-items: center; }
         .input-group input {
             padding: 10px;
             font-size: 1em;
-            border: 1px solid #ccc;
+            border: 1px solid var(--input-border-color);
             border-radius: 5px;
             flex-grow: 1;
+            background-color: var(--container-bg-color); /* Match container bg */
+            color: var(--text-color);
+            transition: border-color 0.3s ease, background-color 0.3s ease, color 0.3s ease;
         }
 
         #seek_amount_input {
@@ -56,7 +202,7 @@
         }
 
         pre {
-            background-color: #e9ecef;
+            background-color: var(--pre-bg-color);
             padding: 15px;
             border-radius: 5px;
             white-space: pre-wrap;
@@ -64,11 +210,22 @@
             font-size: 0.85em;
             max-height: 300px;
             overflow-y: auto;
-            border: 1px solid #dee2e6;
+            border: 1px solid var(--pre-border-color);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
         .status-section { margin-top: 25px; }
         .channel-list-section { margin-top: 25px; }
-        .channel-list-section select { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc; font-size: 1em; margin-bottom: 10px;}
+        .channel-list-section select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid var(--input-border-color);
+            font-size: 1em;
+            margin-bottom: 10px;
+            background-color: var(--container-bg-color); /* Match container bg */
+            color: var(--text-color);
+            transition: border-color 0.3s ease, background-color 0.3s ease, color 0.3s ease;
+        }
         .channel-list-section .refresh-button-container { text-align: right; margin-top: 5px; }
         .seek-controls { margin-top: 15px; }
 
@@ -84,58 +241,63 @@
             max-width: 300px;
         }
         .notification {
-            background-color: #4CAF50;
+            background-color: var(--notification-success-bg);
             color: white;
             padding: 10px 20px;
             border-radius: 5px;
             opacity: 0;
-            transition: opacity 0.5s ease-in-out;
+            transition: opacity 0.5s ease-in-out, background-color 0.3s ease;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             font-size: 0.9em;
         }
-        .notification.error { background-color: #f44336; }
+        .notification.error { background-color: var(--notification-error-bg); }
         .notification.show { opacity: 1; }
 
         /* Styling for Now Playing display */
         #now-playing-display {
             display: flex;
-            align-items: flex-start; /* Align items to the top for better text flow */
-            background-color: #e9ecef;
+            align-items: flex-start;
+            background-color: var(--now-playing-bg);
             padding: 15px;
             border-radius: 5px;
-            border: 1px solid #dee2e6;
+            border: 1px solid var(--now-playing-border);
             margin-top: 10px;
             gap: 15px;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
         #now-playing-display img {
-            max-width: 120px; /* Adjust image size as needed */
+            max-width: 120px;
             height: auto;
             border-radius: 4px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            flex-shrink: 0; /* Prevent image from shrinking */
+            box-shadow: var(--now-playing-image-shadow);
+            flex-shrink: 0;
         }
         #now-playing-info {
-            flex-grow: 1; /* Allow info block to take available space */
+            flex-grow: 1;
         }
         #now-playing-info h3 {
             margin-top: 0;
             margin-bottom: 5px;
-            color: #0056b3;
+            color: var(--now-playing-header-color);
             font-size: 1.2em;
+            transition: color 0.3s ease;
         }
         #now-playing-info p {
             margin: 0;
             font-size: 0.95em;
-            color: #333;
+            color: var(--now-playing-text-color);
+            transition: color 0.3s ease;
         }
         #now-playing-info .episode-details {
             font-size: 0.85em;
-            color: #666;
+            color: var(--now-playing-episode-color);
             margin-bottom: 5px;
+            transition: color 0.3s ease;
         }
         #now-playing-info .summary {
             font-size: 0.85em;
-            color: #555;
+            color: var(--now-playing-summary-color);
+            transition: color 0.3s ease;
         }
         #now-playing-display.hidden {
             display: none;
@@ -145,6 +307,16 @@
 <body>
     <div class="container">
         <h1>Channels App Remote Control</h1>
+
+        <div style="margin-bottom: 20px;">
+            <label for="theme-select" style="margin-right: 10px;">Select Theme:</label>
+            <select id="theme-select" onchange="applyTheme()">
+                <option value="default-light">Default Light</option>
+                <option value="light-purple">Light (Purple Buttons)</option>
+                <option value="dark-gray">Dark (Gray Buttons)</option>
+                <option value="dark-green">Dark (Green Buttons)</option>
+            </select>
+        </div>
 
         <div class="config-info">
             <p><strong>Configured Clients:</strong></p>
@@ -226,6 +398,7 @@
         const statusDisplay = document.getElementById('status-display');
         const nowPlayingDisplay = document.getElementById('now-playing-display');
         const controlButtons = document.querySelectorAll('.control-button');
+        const themeSelect = document.getElementById('theme-select'); // New element
 
         let selectedClientIp = '';
 
@@ -263,7 +436,22 @@
             }
         }
 
+        // New function to apply theme
+        function applyTheme() {
+            const selectedTheme = themeSelect.value;
+            document.body.className = ''; // Remove existing theme classes
+            if (selectedTheme !== 'default-light') {
+                document.body.classList.add(`theme-${selectedTheme}`);
+            }
+            localStorage.setItem('selectedTheme', selectedTheme); // Save preference
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
+            // Load and apply saved theme
+            const savedTheme = localStorage.getItem('selectedTheme') || 'default-light';
+            themeSelect.value = savedTheme; // Set dropdown to saved value
+            applyTheme(); // Apply the theme
+
             const savedPopupState = localStorage.getItem('enablePopups');
             if (savedPopupState !== null) {
                 enablePopupsCheckbox.checked = JSON.parse(savedPopupState);
