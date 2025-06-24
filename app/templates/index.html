@@ -341,23 +341,23 @@
         <h2>Playback Controls</h2>
         <div class="button-grid">
             <button class="control-button" onclick="sendCommand('toggle_pause')">Play/Pause</button>
-            <button class="control-button" onclick="sendCommand('stop')">Stop Playback</button>
-            <button class="control-button" onclick="sendCommand('toggle_mute')">Toggle Mute</button>
-            <button class="control-button" onclick="sendCommand('toggle_cc')">Toggle CC</button>
-            <button class="control-button" onclick="toggleCcAndMute()">CC + Mute Toggle</button>
-            <button class="control-button" onclick="rewindAndEnableCC()">Rewind 15s & CC</button>
-            <button class="control-button" onclick="sendCommand('channel_up')">Channel Up</button>
-            <button class="control-button" onclick="sendCommand('channel_down')">Channel Down</button>
-            <button class="control-button" onclick="sendCommand('previous_channel')">Previous Channel</button>
+            <button class="control-button" onclick="sendCommand('stop')">Stop</button>
+            <button class="control-button" onclick="sendCommand('toggle_mute')">Mute</button>
+            <button class="control-button" onclick="sendCommand('toggle_cc')">CC</button>
+            <button class="control-button" onclick="toggleCcAndMute()">CC/Mute</button>
+            <button class="control-button" onclick="rewindAndEnableCC()">Back 15/CC</button>
+            <button class="control-button" onclick="sendCommand('channel_up')">Ch Up</button>
+            <button class="control-button" onclick="sendCommand('channel_down')">Ch Down</button>
+            <button class="control-button" onclick="sendCommand('previous_channel')">Previous Ch</button>
         </div>
 
         <div class="seek-controls input-group">
-            <input type="number" id="seek_amount_input" value="30" placeholder="Secs"> <button class="control-button" onclick="sendSeekCommand(-1 * document.getElementById('seek_amount_input').value)">Seek Back</button>
-            <button class="control-button" onclick="sendSeekCommand(document.getElementById('seek_amount_input').value)">Seek Forward</button>
+            <input type="number" id="seek_amount_input" value="30" placeholder="Secs"> <button class="control-button" onclick="sendSeekCommand(-1 * document.getElementById('seek_amount_input').value)">Go Back</button>
+            <button class="control-button" onclick="sendSeekCommand(document.getElementById('seek_amount_input').value)">Go Forward</button>
         </div>
 
         <div class="input-group">
-            <input type="number" id="manual_channel_input" placeholder="Enter Channel #"> <button class="control-button" onclick="sendCommand('play_channel', document.getElementById('manual_channel_input').value)">Play Manual Channel</button>
+            <input type="number" id="manual_channel_input" placeholder="Enter Channel #"> <button class="control-button" onclick="sendCommand('play_channel', document.getElementById('manual_channel_input').value)">Go</button>
         </div>
 
         <div class="channel-list-section">
