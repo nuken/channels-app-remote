@@ -1,5 +1,5 @@
 # Development moved to https://github.com/nuken/channels-app-remote-plus
-**Note:** This repository will remain open for anyone wamting to use it for development.
+**Note:** This repository will remain open for anyone wanting to use it for development.
 
 
 # Channels DVR Simple Remote Control
