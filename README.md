@@ -1,3 +1,7 @@
+# Development moved to https://github.com/nuken/channels-app-remote-plus
+**Note:** This repository will remain open for anyone wamting to use it for development.
+
+
 # Channels DVR Simple Remote Control
 
 This is a basic, dockerized web-based remote control for your Channels DVR client apps (e.g., Apple TV, Fire TV). It's designed for simple control and mobile use.
